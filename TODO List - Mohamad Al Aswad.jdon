@@ -1,0 +1,162 @@
+// first approach for the DB:
+{
+    "priority": [ // predefined table (can be seeded by 1-low. 2-medium. 3-high)
+        {
+            "id_priority": int,
+            "title": string,
+            "order": int,
+        }
+    ],
+    "user":[
+        {
+            "user_id": int,
+            // auth information (username, password, is_active, ...),
+        }
+    ],
+    "todo_list": [
+        {
+            "id_todo_list": int,
+            "id_priority": int,
+            "id_user": int,
+
+            "order": int,
+            "title": string,
+            "is_done": boolean, // we can make it as a derived attribute, and all tasks inside this list must be done so that this list is considered to have been done
+
+            "created_at": timestamp,
+            "updated_at": timestamp?,
+        }
+    ],
+    "task": [
+        {
+            "id_task": int,
+            "id_todo_list": int,
+            "id_priority": int,
+            "id_task_parent": int?, // if the id_task_parent is not null -> this task is a subtask from id_task_parent
+
+            "order": int,
+            "title": string,
+            "is_done": boolean,
+
+            "created_at": timestamp,
+            "updated_at": timestamp?,
+        }
+    ]
+}
+-----------------------------------------
+// second approach for the DB (the difference is in the way of storing the order in 'task' table)
+{
+    "priority": [ // predefined table (can be seeded by 1-low. 2-medium. 3-high)
+    ],
+    "user":[
+    ],
+    "task": [
+        {
+            "id_task": int,
+            "id_todo_list": int,
+            "id_priority": int,
+            "id_task_parent": int?, // if the id_task_parent is not null -> this task is a subtask from id_task_parent
+
+---         "order": int, 
+            "title": string,
+            "is_done": boolean,
++++         "children_order": string, // format will be: id1#id2#id3#... where id1 is the first task in the correct order, id2 is the second one, and so on.
+
+            "created_at": timestamp,
+            "updated_at": timestamp?,
+        }
+    ] ,
+    "todo_list": [
+        {
+            "id_todo_list": int,
+            "id_priority": int,
+            "id_user": int,
+
+            "order": int,  // we can remove this column and apply the same approach on the order of todo_list.
+            "title": string,
+            "is_done": boolean,
++++         "children_order": string, // format will be: id1#id2#id3#... where id1 is the first task in the correct order, id2 is the second one, and so on.
+
+            "created_at": timestamp,
+            "updated_at": timestamp?,
+        }
+    ],
+}
+
+______________________________________________________________________________________________________
+API:
+
+
+GET /app/todo_list
+    no body required, we may add a filtering or sorting params
+    return all todo_list which belong to the current user
+
+POST /app/todo_list
+    body:
+    {
+        "title_priority": string,
+        "order": int,  // we can remove this attribute and store the list as the last list by default
+        "title": string,
+        "is_done": boolean,
+    }
+    return the stored todo_list
+
+PUT /app/todo_list
+    body will contains an ID of a list and an other ID to put the first list under the second one
+    {
+        "id_todo_list1": int,
+        "id_todo_list2": int?, // in case of NULL, the list will be the first one
+    }
+    return a shift confirmation
+
+PUT /app/todo_list/{id_todo_list}
+    body should contain the changed info (optional)
+    {
+        "id_priority": int?,
+        "title": string?
+        "is_done": boolean?,
+    }
+    return the updated version of the todo_list
+
+DELETE /app/todo_list/{id_todo_list}
+    no body required
+    return a delete confirmation
+
+POST /app/todo_list/{id_todo_list}
+    body:
+    {
+        "title_priority": int,
+
+        "order": int,  // we can remove this attribute and store the task as the last task by default
+        "title": string,
+        "is_done": boolean,
+    }
+    return the stored task
+
+GET /app/todo_list/{id_todo_list}
+    no body required, we may add a filtering or sorting params
+    return all MAIN tasks (id_task_parent is null) which belong to id_todo_list
+        the tasks should be ordered by the priority then by the actual order between them
+
+
+PUT /app/todo_list/tasks-order/{id_todo_list}
+    body will contains an ID of a task and an other ID to put the first task under the second one in the list
+    {
+        "id_task1": int,
+        "id_task2": int?, // in case of NULL, the task will be the first one
+    }
+    return a shift confirmation
+    
+GET /app/todo_list/task/{id_task}
+    no body required, we may add a filtering or sorting params
+    return all sub-tasks of the 'id_task'
+        the sub-tasks should be ordered by the priority then by the actual order between them
+
+PUT /app/todo_list/subtasks-order/{id_task}
+    similar to PUT /app/todo_list/tasks-order/{id_todo_list}
+
+
+DELETE /app/todo_list/task/{id_task}
+PUT /app/todo_list/task/{id_task}
+
+    
